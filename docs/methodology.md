@@ -24,7 +24,7 @@ It measures which path gets a transaction into the leader's block first, how oft
 It does not measure:
 
 - **Contention with other writers.** Every copy in a round is ours. A backrun on a busy pool queues behind other bots that write the same accounts, and nothing here reproduces that queue.
-- **Time to land in milliseconds.** Results are slots and block positions. Response time is the send request alone.
+- **Time to land in milliseconds.** Results are slots and block positions. Response time is the send request alone. See [Related work](#related-work) for a tool that measures milliseconds.
 - **Large transactions.** Probes are 230 to 290 bytes and request 1,000 compute units.
 - **Leader coverage.** Bundles only land in slots led by validators running a block engine client. A bundle path's landing rate partly reflects that client's share of leader slots.
 
@@ -74,6 +74,12 @@ Tip accounts in the example match the signed registry in [`solana-foundation/rpc
 - **The fee payer is public.** A path can recognize the benchmark's transactions and treat them specially. Nothing here prevents that. Rotating payers would make it harder; if paths sign with different payers, set `rounds.lock_account` so the copies still contend for one lock.
 - **One vantage point per instance.** Rankings depend on where the sender runs relative to each path's endpoint. Run one instance per region and compare within a region.
 - **`settle_timeout` must outlast a blockhash** (about 60 to 90 seconds). Shorter values record late landings as dropped; the sender warns at startup.
+
+## Related work
+
+**[Ping Thing](https://github.com/rpcpool/ping-thing-client)** is maintained by Triton One and validators.app, and feeds the [validators.app Ping Thing dashboard](https://www.validators.app/ping-thing?locale=en&network=mainnet). Each pinger sends a self-transfer through one endpoint and resends it until it lands. It records the milliseconds until the signature appears on a Yellowstone gRPC stream, and how many slots the transaction took to land. It leaves out transactions that fail on chain. Ping Thing follows one endpoint over time, while this benchmark races several paths in the same rounds. Watching a gRPC stream for the signature is also how this benchmark would add time to land in milliseconds.
+
+**[ping-things-rs](https://github.com/Astralane/ping-things-rs)** from Astralane, based on the Ping Thing client, is the closest design. It sends one transaction per endpoint at about the same time, from one fee payer. It records each transaction's landing slot, and the time until a `getTransaction` poll finds it; the poll runs every two seconds. It runs a fixed number of rounds and writes one CSV file per endpoint. It does not read positions in the block, so copies that land in the same slot cannot be ordered. Its senders cover bloXroute's API and Astralane's text and binary endpoints, which this benchmark does not support yet.
 
 ## Operation
 
