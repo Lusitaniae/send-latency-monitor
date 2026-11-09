@@ -1,0 +1,7 @@
+/target/
+# The daily spend ledger. Persist it on hosts; never commit it.
+.send-benchmark-state/
+*.local.yaml
+*.local.yml
+.env
+*.local.env

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  msrv:
+    name: Minimum Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.89
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --all-targets --locked
+
+  schema:
+    name: Migrations on ClickHouse
+    runs-on: ubuntu-latest
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:26.3
+        env:
+          CLICKHOUSE_DB: benchmark
+          CLICKHOUSE_USER: bench
+          CLICKHOUSE_PASSWORD: bench
+          CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+        ports:
+          - 8123:8123
+          - 9000:9000
+        options: >-
+          --health-cmd "clickhouse-client --user bench --password bench --query 'SELECT 1'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      GOOSE_DRIVER: clickhouse
+      GOOSE_MIGRATION_DIR: sql/migrations
+      GOOSE_DBSTRING: clickhouse://bench:bench@127.0.0.1:9000/benchmark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go install github.com/pressly/goose/v3/cmd/goose@v3.28.0
+      - run: goose -table send_benchmark_goose_db_version validate
+      - run: goose -table send_benchmark_goose_db_version up
+      # A second run must be a no-op.
+      - run: goose -table send_benchmark_goose_db_version up
+      - name: Both tables exist
+        run: |
+          tables=$(curl -sf -u bench:bench 'http://127.0.0.1:8123/?database=benchmark' \
+            --data-binary "SELECT count() FROM system.tables WHERE database = 'benchmark' AND name IN ('benchmark_send_rounds', 'benchmark_send_attempts')")
+          test "$tables" = 2 || { echo "expected 2 send tables, found $tables"; exit 1; }

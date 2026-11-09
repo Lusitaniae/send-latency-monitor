@@ -1,0 +1,86 @@
+# Send-path benchmark: one instance per region. See docs/methodology.md.
+# URLs, credentials and the keypair come from the environment (see .env.example).
+# Tip accounts below match the signed registry in solana-foundation/rpc-latency-monitor
+# (sender/tip-accounts.json, checked 2026-11-09); update them from there on rotation.
+
+state_dir: .send-benchmark-state
+
+location:
+  region: fra
+  cloud_provider: tsw
+
+wallet:
+  # base58 secret key or the JSON byte array solana-keygen writes. Fund this wallet
+  # with about a week of budget at a time: its balance is the hard ceiling.
+  keypair_env: SEND_BENCH_KEYPAIR
+
+reference_rpc:
+  # Trusted RPC for blockhashes, slots, statuses and block order. Never a path.
+  url_env: BENCH_REFERENCE_RPC_URL
+  request_timeout: 2s
+  status_poll: 400ms
+
+clickhouse:
+  url: http://localhost:8123
+  database: benchmark
+  user_env: CLICKHOUSE_SEND_USER
+  password_env: CLICKHOUSE_SEND_PASSWORD
+
+rounds:
+  # About 1,440 rounds a day. ~800 rounds separate a 55/45 head-to-head split.
+  interval: 60s
+  jitter: 20s
+  cu_limit: 1000
+  # Same priority fee on every copy, so it never decides their order.
+  priority_lamports: 2000
+  # lock_account: <pubkey>   # only needed when paths sign with different fee payers
+  settle_timeout: 90s
+  send_timeout: 5s
+
+budget:
+  # 0.3 SOL per UTC day for this region. Worst case per round with the paths
+  # below: 4 x 7,000 fee + 5,000 + 20,000 tips = 53,000 lamports.
+  daily_lamports: 300000000
+  min_balance_lamports: 50000000
+
+paths:
+  - name: triton-cascade
+    url_env: SEND_PATH_TRITON_URL
+
+  - name: helius-sender
+    url_env: SEND_PATH_HELIUS_SENDER_URL
+    # Sender's SWQoS-only tier: tips of at least 5,000 lamports.
+    tip:
+      lamports: 5000
+      accounts:
+        - 4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE
+        - D2L6yPZ2FmmmTKPgzaMKdhu6EWZcTpLy1Vhx8uvZe7NZ
+        - 9bnz4RShgq1hAnLnZbP8kbgBg1kEmcJBYQq3gQbmnSta
+        - 5VY91ws6B2hMmBFRsXkoAAdsPHBJwRfBht4DXox3xkwn
+        - 2nyhqdwKcJZR2vcqCyrYsaPVdAnFoJjiksCXJ7hfEYgD
+        - 2q5pghRs6arqVjRvT5gfgWfWcHWmw1ZuCzphgd5KfWGJ
+        - wyvPkWjVZz1M8fHQnMMCDTQDbkManefNNhweYk5WkcF
+        - 3KCKozbAaF75qEU33jtzozcJ29yJuaLJTy2jFdzUY8bT
+        - 4vieeGHPYPG2MmyPRcYjdiDmmhN3ww7hsFNap8pVN3Ey
+        - 4TQLFNWK8AovT1gFvda5jfw2oJeRMKEmw7aH6MGBJ3or
+
+  - name: jito
+    # The block engine's /api/v1/bundles endpoint. A one-transaction bundle tipping
+    # above the current tip floor (check before setting).
+    url_env: SEND_PATH_JITO_URL
+    method: sendBundle
+    tip:
+      lamports: 20000
+      accounts:
+        - 96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5
+        - HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe
+        - Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY
+        - ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49
+        - DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh
+        - ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt
+        - DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL
+        - 3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT
+
+  - name: rpc-sendtransaction
+    # A plain RPC sendTransaction, for comparison with the landing services.
+    url_env: SEND_PATH_RPC_URL
