@@ -15,7 +15,7 @@ Each round:
 
 The fee payer is writable in every copy, so the copies of a round contend for one write lock and the leader orders them one after another. Their order in the block is the race. Nobody else writes that account, so there is no local fee market for it, the fee can stay fixed and low, and the benchmark puts no load on accounts other people use.
 
-All outcomes come from the reference RPC, which must not be one of the paths.
+All outcomes come from the reference RPC, which must not be one of the paths or come from a provider that has one, so no provider grades its own copies. With every RPC provider from the RPC benchmark as a path, that means a node outside the set, such as one the operator runs.
 
 ## What it measures, and what it does not
 
@@ -50,7 +50,7 @@ About 800 rounds tell a 55/45 head-to-head split apart from an even one. At one 
 
 Cost per day = rounds a day × (copies × (5,000 + priority fee) + tips of copies that succeed). A dropped copy costs nothing; a failed copy pays its fee but not its tip.
 
-With the example configuration (4 paths, 2,000 lamports of priority, 5,000- and 20,000-lamport tips, one round a minute) the worst case is 53,000 lamports a round, about 0.076 SOL a day per region.
+With the example configuration (8 paths, 2,000 lamports of priority, one 20,000-lamport tip, one round a minute) the worst case is 76,000 lamports a round, about 0.11 SOL a day per region.
 
 Controls:
 
@@ -66,7 +66,7 @@ Skipped rounds are recorded with status `skipped_budget`, `skipped_balance` or `
 
 ## Tips
 
-Tip each path at the lowest level that actually lands, and record it in the configuration. Jito bundles compete in an auction: a tip below the current tip floor is accepted and then never included. Check the floor before setting `tip.lamports`, and expect to revise it. Each provider's minimum tip, and why the example leaves most of them out, are in [Providers](providers.md).
+Tip each path at the lowest level that actually lands, and record it in the configuration. Jito bundles compete in an auction: a tip below the current tip floor is accepted and then never included. Check the floor before setting `tip.lamports`, and expect to revise it. Each provider's send options and minimum tip, and which ones the example measures, are in [Providers](providers.md).
 
 Tip accounts in the example match the signed registry in [`solana-foundation/rpc-latency-monitor`](https://github.com/solana-foundation/rpc-latency-monitor/blob/main/sender/tip-accounts.json). Update them from there when a provider rotates.
 
