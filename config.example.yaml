@@ -46,7 +46,7 @@ budget:
   min_balance_lamports: 50000000
 
 paths:
-  - name: triton-cascade
+  - name: triton
     url_env: SEND_PATH_TRITON_URL
 
   - name: helius-sender

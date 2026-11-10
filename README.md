@@ -35,6 +35,6 @@ cargo run --release -- --config config.local.yaml
 
 ## Docs
 
-[Methodology](docs/methodology.md) · [Schema](sql/README.md)
+[Methodology](docs/methodology.md) · [Providers](docs/providers.md) · [Schema](sql/README.md)
 
 Licensed under [Apache-2.0](LICENSE).

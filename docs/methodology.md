@@ -66,7 +66,7 @@ Skipped rounds are recorded with status `skipped_budget`, `skipped_balance` or `
 
 ## Tips
 
-Tip each path at the lowest level that actually lands, and record it in the configuration. Jito bundles compete in an auction: a tip below the current tip floor is accepted and then never included. Check the floor before setting `tip.lamports`, and expect to revise it.
+Tip each path at the lowest level that actually lands, and record it in the configuration. Jito bundles compete in an auction: a tip below the current tip floor is accepted and then never included. Check the floor before setting `tip.lamports`, and expect to revise it. Each provider's minimum tip, and why the example leaves most of them out, are in [Providers](providers.md).
 
 Tip accounts in the example match the signed registry in [`solana-foundation/rpc-latency-monitor`](https://github.com/solana-foundation/rpc-latency-monitor/blob/main/sender/tip-accounts.json). Update them from there when a provider rotates.
 
