@@ -25,8 +25,8 @@ pub struct Probe {
 }
 
 /// One copy: compute budget, a self-transfer, and the path's tip if it has one.
-/// `copy` makes the self-transfer amount differ per path, so copies that share a
-/// blockhash still have distinct signatures. The fee payer is writable in every
+/// The self-transfer moves `copy + 1` lamports, so copies with different `copy`
+/// numbers have distinct signatures even with the same blockhash and payer. The fee payer is writable in every
 /// copy, so copies of a round always contend for the same write lock; the optional
 /// lock account is appended to the self-transfer as an unused writable account.
 pub fn build(round: &RoundTx<'_>, copy: usize, tip: Option<(Pubkey, u64)>) -> Result<Probe> {

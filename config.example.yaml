@@ -10,8 +10,9 @@ location:
   cloud_provider: tsw
 
 wallet:
-  # base58 secret key or the JSON byte array solana-keygen writes. Fund this wallet
-  # with about a week of budget at a time: its balance is the hard ceiling.
+  # base58 secret key or the JSON byte array solana-keygen writes. Several regions
+  # can share one wallet. Fund it with about a week of their combined budget at a
+  # time: its balance is the hard ceiling.
   keypair_env: SEND_BENCH_KEYPAIR
 
 reference_rpc:
@@ -41,6 +42,7 @@ budget:
   # 0.3 SOL per UTC day for this region. Worst case per round with the paths
   # below: 4 x 7,000 fee + 5,000 + 20,000 tips = 53,000 lamports.
   daily_lamports: 300000000
+  # At least the largest self-transfer (16,000,000) plus one round.
   min_balance_lamports: 50000000
 
 paths:

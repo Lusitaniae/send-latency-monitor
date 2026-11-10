@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 use crate::{
     budget::{self, Ledger, Reservation},
-    config::{Config, MAX_PATHS},
+    config::{Config, MAX_PATHS, SELF_TRANSFER_BLOCKS},
     rpc::{Path, Reference, SendStatus, Status},
     storage::{self, AttemptRow, RoundRow},
     tx,
@@ -133,7 +133,7 @@ impl Ctx {
 
 /// Start a round. Returns the task that settles and records it, or `None` if the
 /// round was skipped (already recorded).
-pub async fn start(ctx: Arc<Ctx>, seq: u64) -> Option<tokio::task::JoinHandle<()>> {
+pub async fn start(ctx: Arc<Ctx>) -> Option<tokio::task::JoinHandle<()>> {
     let round_id = Uuid::now_v7();
     let started = now_utc();
 
@@ -214,13 +214,15 @@ pub async fn start(ctx: Arc<Ctx>, seq: u64) -> Option<tokio::task::JoinHandle<()
     let mut prepared = Vec::with_capacity(ctx.paths.len());
     {
         let mut rng = rand::rng();
+        // Random per round and distinct per path, so no two copies share a
+        // signature when rounds get the same blockhash, including rounds of other
+        // instances that sign with the same fee payer.
+        let block = rng.random_range(0..SELF_TRANSFER_BLOCKS);
         for (i, entry) in ctx.paths.iter().enumerate() {
             let tip = entry.tip.as_ref().map(|(accounts, lamports)| {
                 (accounts[rng.random_range(0..accounts.len())], *lamports)
             });
-            // Distinct per path and per round, so no two copies share a signature
-            // even if two rounds get the same blockhash.
-            let copy = i + MAX_PATHS * usize::try_from(seq % 10_000).unwrap_or(0);
+            let copy = i + MAX_PATHS * block;
             match tx::build(&round_tx, copy, tip) {
                 Ok(probe) => prepared.push((i, probe.signature, entry.path.body(&probe.wire), tip)),
                 Err(error) => {

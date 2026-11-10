@@ -58,6 +58,7 @@ Controls:
 - **Minimum balance.** Rounds stop while the fee payer holds less than `budget.min_balance_lamports`.
 - **Ceilings in code.** Configuration is rejected above 10,000,000 lamports of tip or 1,000,000 lamports of priority per copy. Raising either is a code change.
 - **Wallet balance.** Fund the fee payer with about a week of budget at a time. Its balance is the hard ceiling whatever the software does.
+- **Shared wallet.** Instances in several regions can sign with one fee payer. Each round picks its self-transfer amounts at random, one per path, so copies from two instances that read the same blockhash still differ. Each instance keeps its own daily budget, so fund the wallet for their total. `min_balance_lamports` must cover the largest self-transfer (0.016 SOL) plus one round, which the sender checks at startup.
 
 - **ClickHouse outages.** Once a write fails, new rounds are skipped (`skipped_error`, "ClickHouse writes are failing") until a write succeeds again, so the sender does not keep spending on rows it cannot record. Rounds already sent keep retrying their writes for about ten minutes. Rounds sent before the first failure is noticed (up to `settle_timeout` plus 30 seconds) are written once ClickHouse is back.
 
@@ -73,6 +74,7 @@ Tip accounts in the example match the signed registry in [`solana-foundation/rpc
 
 - **The fee payer is public.** A path can recognize the benchmark's transactions and treat them specially. Nothing here prevents that. Rotating payers would make it harder; if paths sign with different payers, set `rounds.lock_account` so the copies still contend for one lock.
 - **One vantage point per instance.** Rankings depend on where the sender runs relative to each path's endpoint. Run one instance per region and compare within a region.
+- **A shared wallet's lock is shared too.** When rounds from two instances land in the same slot, their copies contend for the fee payer's write lock together. Separate fee payers avoid this.
 - **`settle_timeout` must outlast a blockhash** (about 60 to 90 seconds). Shorter values record late landings as dropped; the sender warns at startup.
 
 ## Related work

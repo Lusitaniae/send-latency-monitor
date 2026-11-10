@@ -152,7 +152,6 @@ async fn run(ctx: Arc<round::Ctx>) -> Result<()> {
     let mut settling = tokio::task::JoinSet::new();
     let shutdown = shutdown_signal();
     tokio::pin!(shutdown);
-    let mut seq = 0_u64;
     loop {
         let delay = round::next_delay(ctx.config.rounds.interval, ctx.config.rounds.jitter);
         tokio::select! {
@@ -160,14 +159,13 @@ async fn run(ctx: Arc<round::Ctx>) -> Result<()> {
             _ = tokio::time::sleep(delay) => {}
         }
         while settling.try_join_next().is_some() {}
-        if let Some(task) = round::start(ctx.clone(), seq).await {
+        if let Some(task) = round::start(ctx.clone()).await {
             settling.spawn(async move {
                 if let Err(error) = task.await {
                     tracing::error!(%error, "settle task failed");
                 }
             });
         }
-        seq += 1;
     }
     // Rounds already sent still cost money: let them settle and be recorded.
     let grace = ctx.config.rounds.settle_timeout + Duration::from_secs(60);

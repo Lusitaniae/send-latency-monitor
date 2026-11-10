@@ -12,6 +12,12 @@ use solana_pubkey::Pubkey;
 pub const MAX_TIP_LAMPORTS: u64 = 10_000_000;
 pub const MAX_PRIORITY_LAMPORTS: u64 = 1_000_000;
 pub const MAX_PATHS: usize = 16;
+/// Each round picks one of this many blocks of `MAX_PATHS` self-transfer amounts
+/// at random, so copies from instances that share a fee payer and read the same
+/// blockhash still have distinct signatures.
+pub const SELF_TRANSFER_BLOCKS: usize = 1_000_000;
+/// The largest self-transfer a copy makes. The fee payer must hold it.
+pub const MAX_SELF_TRANSFER_LAMPORTS: u64 = (MAX_PATHS * SELF_TRANSFER_BLOCKS) as u64;
 /// Base fee per signature. Every probe has exactly one signature.
 pub const BASE_FEE_LAMPORTS: u64 = 5_000;
 
@@ -101,7 +107,8 @@ pub struct Budget {
     /// Most lamports this sender may spend per UTC day: fees of included copies plus
     /// tips of successful ones. A round starts only if its worst case still fits.
     pub daily_lamports: u64,
-    /// Rounds stop while the fee payer holds less than this.
+    /// Rounds stop while the fee payer holds less than this. At least the largest
+    /// self-transfer plus one round, so a copy never fails for lack of funds.
     pub min_balance_lamports: u64,
 }
 
@@ -254,6 +261,12 @@ impl Config {
                 self.budget.daily_lamports
             );
         }
+        let floor = MAX_SELF_TRANSFER_LAMPORTS + worst;
+        if self.budget.min_balance_lamports < floor {
+            bail!(
+                "budget.min_balance_lamports must be at least {floor}: the largest self-transfer ({MAX_SELF_TRANSFER_LAMPORTS}) plus one round ({worst})"
+            );
+        }
         Ok(())
     }
 
@@ -340,6 +353,16 @@ mod tests {
                 "{limit} CU at {priority}: charged {charged}"
             );
         }
+    }
+
+    #[test]
+    fn rejects_a_minimum_balance_below_the_largest_self_transfer() {
+        let mut config: Config = yaml_serde::from_str(EXAMPLE).unwrap();
+        let floor = MAX_SELF_TRANSFER_LAMPORTS + config.worst_round_lamports();
+        config.budget.min_balance_lamports = floor - 1;
+        assert!(config.validate().is_err());
+        config.budget.min_balance_lamports = floor;
+        config.validate().unwrap();
     }
 
     #[test]
